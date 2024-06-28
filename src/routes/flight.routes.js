@@ -11,4 +11,8 @@ router.route('/api/flight/order')
       .get(authCtrl.checkSignin, flightCtrl.listOrder)
       .post(authCtrl.checkSignin, flightCtrl.placeFlightOrder)
 
+router.route('/api/flight/orderStatus')
+      .get(authCtrl.checkSignin, flightCtrl.orderStatus)
+      .put(authCtrl.checkSignin, flightCtrl.updateOrderStatus)
+
 export default router;

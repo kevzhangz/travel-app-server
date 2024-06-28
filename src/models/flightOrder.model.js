@@ -58,9 +58,8 @@ const FlightOrderSchema = new mongoose.Schema({
   price: {
     type: mongoose.Types.Decimal128,
   },
-  status: {
-    type: String
-  },
+  status: String,
+  transaction_token: String,
   user: {
     type: mongoose.Schema.ObjectId,
     ref: 'User'

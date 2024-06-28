@@ -2,6 +2,7 @@ import Amadeus from 'amadeus'
 import FlightOrder from '../models/flightOrder.model.js';
 import dbErrorHandler from '../helpers/dbErrorHandler.js';
 import generator from '../helpers/generator.js';
+import midtransClient from 'midtrans-client';
 
 
 // setup process.env
@@ -102,14 +103,85 @@ const placeFlightOrder = async (req, res) => {
             ...req.body
         }
 
+        let snap = new midtransClient.Snap({
+            isProduction : false,
+            serverKey : process.env.MIDTRANS_SERVER_KEY,
+            clientKey : process.env.MIDTRANS_CLIENT_KEY
+        });
+
+        let parameter = {
+            "transaction_details": {
+              "order_id": newFlightOrder['id'],
+              "gross_amount": req.body.price
+            },
+            "item_details": [{
+              "name": `${req.body.flight_details.from.city} ➔ ${req.body.flight_details.to.city}`,
+              "quantity": 1,
+              "price": req.body.price,
+              "category": "Flight Ticket",
+              "merchant_name": "TravelSkyline"
+            }],
+            "customer_details": {
+              "first_name": req.body.contact_details.first_name,
+              "last_name": req.body.contact_details.last_name,
+              "phone": req.body.contact_details.mobile_number,
+            },
+            "flight_details": req.body.flight_details,
+            "expiry": {
+              "unit": "hours",
+              "duration": 24,
+            },
+        }
+
+        let transaction = await snap.createTransaction(parameter);
+
+        newFlightOrder['transaction_token'] = transaction.token;
+
         // add sell data
         const flightOrder = new FlightOrder(newFlightOrder)
         await flightOrder.save()
 
         return res.status(200).json({
             messages: 'Flight Order successfully placed',
+            orderId: newFlightOrder['id'],
+            transactionToken: transaction.token,
         })
 
+    } catch (err){
+        return res.status(500).json({
+            error: dbErrorHandler.getErrorMessage(err)
+        })
+    }
+}
+
+const orderStatus = async (req, res) => {
+    try {
+
+        return res.status(200).json({
+            token: token,
+            messages: 'Flight Order successfully placed',
+        })
+
+    } catch (err){
+        return res.status(500).json({
+            error: dbErrorHandler.getErrorMessage(err)
+        })
+    }
+}
+
+const updateOrderStatus = async (req, res) => {
+    try {
+        await FlightOrder.updateOne({
+            id: req.body.orderId
+        }, {
+            $set: {
+                status: 'done'
+            }
+        });
+
+        return res.status(200).json({
+            messages: 'Success'
+        });
     } catch (err){
         return res.status(500).json({
             error: dbErrorHandler.getErrorMessage(err)
@@ -134,5 +206,7 @@ const listOrder = async (req, res) => {
 export default {
     searchFlight,
     placeFlightOrder,
+    orderStatus,
+    updateOrderStatus,
     listOrder
 }
